@@ -320,3 +320,193 @@ input:focus, select:focus, textarea:focus {
   opacity: .45; cursor: not-allowed; transform: none; box-shadow: none;
 }
 .calendar-empty { height: 44px; }
+/* ===== Header / Navbar repaginado ===== */
+.nav {
+  position: sticky; top: 0; z-index: 60;
+  background:
+    radial-gradient(900px 260px at 8% -40%, rgba(255,122,0,.10), transparent 60%),
+    radial-gradient(900px 260px at 92% -40%, rgba(255,122,0,.06), transparent 60%),
+    rgba(12,12,12,.76);
+  backdrop-filter: saturate(130%) blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+.nav--elevated { box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+
+.nav__row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 0;
+}
+
+.nav__center {
+  display: flex; gap: 8px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #0f1012;
+  border: 1px solid var(--border);
+}
+
+.nav__right { display: flex; gap: 8px; align-items: center; }
+
+/* Linha laranja sob o header */
+.nav__underbar {
+  height: 3px;
+  background: linear-gradient(90deg, transparent 10%, #ff7a00 40%, #ffb06b 60%, transparent 90%);
+  filter: blur(.5px);
+}
+
+/* ===== Brand ===== */
+.brand {
+  display: inline-flex; align-items: center; gap: 10px;
+  text-decoration: none; color: var(--text); font-weight: 900; letter-spacing: .2px;
+  padding: 6px 10px; border-radius: 999px;
+  border: 1px solid #ffffff14;
+  background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+}
+.brand:hover { box-shadow: 0 0 0 3px var(--brand-glow); border-color: rgba(255,122,0,.45); }
+.brand--compact { padding: 6px 10px; }
+.brand__dot {
+  width: 14px; height: 14px; border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #ffd0a3, #ff7a00 60%);
+  box-shadow: 0 0 0 3px rgba(255,122,0,.18), 0 6px 18px rgba(255,122,0,.20) inset;
+}
+.brand__text { font-weight: 900; }
+
+/* ===== Pills (botões/links redondos) ===== */
+.pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 16px; border-radius: 999px; font-weight: 800;
+  color: var(--text); text-decoration: none; cursor: pointer;
+  background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+  border: 1px solid var(--border);
+  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease, background .12s ease, color .12s ease;
+}
+.pill:hover { transform: translateY(-1px); border-color: rgba(255,122,0,.55); box-shadow: 0 0 0 3px var(--brand-glow), var(--shadow-2); }
+
+.pill--active,
+.pill.pill--primary {
+  background: linear-gradient(135deg, var(--brand), var(--brand-300));
+  color: #111;
+  border-color: transparent;
+  box-shadow: 0 0 0 3px var(--brand-glow), var(--shadow-1);
+}
+.pill--ghost {
+  background: #ffffff10; color: var(--text); border-color: var(--border);
+}
+
+/* Responsivo */
+.hide-sm { display: inline-flex; }
+.show-sm { display: none; }
+@media (max-width: 900px) {
+  .hide-sm { display: none !important; }
+  .show-sm { display: inline-flex !important; }
+}
+/* Wordmark épico animado — gradiente suave */
+.wordmark-epic {
+  animation: epic-shine 10s linear infinite;
+}
+
+@keyframes epic-shine {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+/* Scroll: header “aperta” levemente */
+.nav__row { padding: 12px 0; transition: padding .18s ease, background .18s ease; }
+.nav--scrolled .nav__row { padding: 8px 0; }
+.nav--scrolled { background: rgba(12,12,12,.82); }
+
+/* Underbar animada */
+.nav__underbar {
+  height: 3px;
+  background: linear-gradient(90deg, transparent 0%, #ff7a00 35%, #ffb06b 55%, transparent 100%);
+  background-size: 200% 100%;
+  animation: underbarMove 4.5s linear infinite;
+  filter: blur(.5px);
+}
+@keyframes underbarMove {
+  0% { background-position: 0% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Brand dot com pulso suave */
+.brand__dot {
+  animation: pulseGlow 2.2s ease-in-out infinite;
+}
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(255,122,0,.16), 0 6px 18px rgba(255,122,0,.18) inset; transform: scale(1); }
+  50%      { box-shadow: 0 0 0 4px rgba(255,122,0,.22), 0 8px 22px rgba(255,122,0,.25) inset; transform: scale(1.05); }
+}
+
+/* Pills – brilho “sheen” no hover e gradiente dinâmico */
+.pill {
+  position: relative; overflow: hidden;
+}
+.pill::before {
+  content: "";
+  position: absolute; inset: 0;
+  background: linear-gradient(120deg, transparent, rgba(255,255,255,.08), transparent);
+  transform: translateX(-120%);
+  transition: transform .35s ease;
+}
+.pill:hover::before { transform: translateX(120%); }
+
+/* gradiente vivo nas primárias/ativas */
+.pill--active,
+.pill.pill--primary {
+  background-image: linear-gradient(135deg, var(--brand), var(--brand-300));
+  background-size: 160% 160%;
+  animation: pillWave 6s ease infinite;
+}
+@keyframes pillWave {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+/* Novo estilo: botão solto igual "Entrar" */
+.pill--primary-flat {
+  background-color: var(--color-primary); /* mesma cor do Entrar */
+  border-radius: 8px; /* menos arredondado */
+  padding: 0.4rem 1rem;
+  border: none;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+  transition: background 0.2s, box-shadow 0.2s;
+}
+
+.pill--primary-flat:hover {
+  background-color: var(--color-primary-hover, #ff9800);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12),
+              0 2px 6px rgba(0, 0, 0, 0.25);
+}/* --- SOLTAR OS MENUS DO GRUPO CENTRAL --- */
+.nav__center {
+  /* remove qualquer cápsula/contorno do grupo */
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+
+  /* espaçamento entre botões (ajuste a gosto) */
+  display: flex;
+  gap: 14px;
+}
+
+/* se havia estilos especiais aplicados aos pills dentro do centro, zera tudo */
+.nav__center .pill {
+  margin: 0 !important;                 /* sem sobreposição/negativos */
+  /* mantém o visual do "Entrar": cada botão fica independente */
+  border-radius: 9999px;                 /* mesmo arredondamento do Entrar */
+  overflow: visible;                     /* evita halos cortados */
+}
+
+/* remove halos/aneis de decoração do grupo antigo (caso existam) */
+.nav__center::before,
+.nav__center::after,
+.nav__center .pill::before {
+  content: none !important;
+  box-shadow: none !important;
+  background: none !important;
+  border: 0 !important;
+}
+
+/* segurança: se havia agrupamento por margem negativa entre pills */
+.nav__center .pill + .pill { margin-left: 0 !important; }

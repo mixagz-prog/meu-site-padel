@@ -1,0 +1,10 @@
+/* Wordmark épico animado — gradiente suave */
+.wordmark-epic {
+  animation: epic-shine 10s linear infinite;
+}
+
+@keyframes epic-shine {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}

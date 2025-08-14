@@ -1,23 +1,30 @@
-// src/context/AuthContext.jsx
-import { createContext, useContext, useEffect, useState } from "react";
-import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "../lib/firebase";
+import { createContext, useContext, useState, useEffect } from "react";
 
-const AuthCtx = createContext({ user: null, loading: true });
+const AuthContext = createContext();
 
-export function AuthProvider({ children }) {
-  const [state, setState] = useState({ user: null, loading: true });
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
-    const off = onAuthStateChanged(auth, (u) => {
-      setState({ user: u, loading: false });
-    });
-    return () => off();
+    const savedUser = JSON.parse(localStorage.getItem("user"));
+    if (savedUser) setUser(savedUser);
   }, []);
 
-  return <AuthCtx.Provider value={state}>{children}</AuthCtx.Provider>;
-}
+  const login = (username) => {
+    setUser({ name: username });
+    localStorage.setItem("user", JSON.stringify({ name: username }));
+  };
 
-export function useAuth() {
-  return useContext(AuthCtx);
-}
+  const logout = () => {
+    setUser(null);
+    localStorage.removeItem("user");
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, login, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => useContext(AuthContext);

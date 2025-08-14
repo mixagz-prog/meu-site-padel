@@ -29,6 +29,7 @@ import {
   getDownloadURL,
   deleteObject,
 } from "firebase/storage";
+import ModalCpf from "../components/ModalCpf.jsx";
 
 const fade = { hidden:{opacity:0,y:12}, show:{opacity:1,y:0,transition:{type:"spring",stiffness:120}} };
 

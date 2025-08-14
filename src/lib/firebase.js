@@ -21,6 +21,7 @@ import {
   getFirestore,
   doc,
   setDoc,
+  getDoc,
   getDocs,
   query,
   collection,
@@ -119,11 +120,27 @@ export async function setCpfMapping(uid, rawCpf) {
   }
 }
 
-/* ============================
-   Compat / aliases p/ Login.jsx
-   ============================ */
+// Resolve nomes de usuários a partir de UIDs (para exibir em eventos/reservas)
+export async function resolveUserNames(uids = []) {
+  const out = {};
+  const uniq = Array.from(new Set(uids.filter(Boolean)));
+  await Promise.all(
+    uniq.map(async (uid) => {
+      try {
+        const s = await getDoc(doc(db, "users", uid));
+        if (s.exists()) {
+          const d = s.data();
+          out[uid] = d?.name || d?.displayName || d?.email || "Usuário";
+        }
+      } catch {}
+    })
+  );
+  return out;
+}
 
-// manter código legado funcionando
+/* ============================
+   Compat / aliases p/ código legado
+   ============================ */
 export async function ensureUserDoc(u, extra = {}) {
   return upsertUserProfile(u, extra);
 }

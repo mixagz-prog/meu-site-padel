@@ -1,24 +1,20 @@
-// src/routes/AdminRoute.jsx
-import React, { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { db } from "../firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { useAuth } from "../context/AuthContext";
 
-export default function AdminRoute({ user, children }) {
-  const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
+/**
+ * Aceita admin via:
+ *  - custom claims: claims.admin === true
+ *  - Firestore: users/<uid>.isAdmin === true  OU  users/<uid>.role === "admin"
+ *  - admins/<uid> (doc existe ou enabled:true)
+ * Espera todo o carregamento antes de decidir.
+ */
+export default function AdminRoute({ children }) {
+  const { user, loading, loadingProfile, loadingAdminDoc, isAdmin } = useAuth();
 
-  useEffect(() => {
-    async function check() {
-      if (!user) { setIsAdmin(false); setLoading(false); return; }
-      const d = await getDoc(doc(db, "admins", user.uid));
-      setIsAdmin(d.exists());
-      setLoading(false);
-    }
-    check();
-  }, [user]);
+  if (loading || loadingProfile || loadingAdminDoc) {
+    // evite flicker/redirecionar antes de carregar
+    return null;
+  }
 
-  if (loading) return null; // ou um spinner bonitão
-  if (!user || !isAdmin) return <Navigate to="/" replace />;
-  return children;
+  return user && isAdmin ? children : <Navigate to="/" replace />;
 }

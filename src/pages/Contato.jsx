@@ -1,154 +1,176 @@
 // src/pages/Contato.jsx
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { db } from "../lib/firebase";
-import { addDoc, collection } from "firebase/firestore";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext.jsx";
+import * as fb from "../lib/firebase";
+const { db } = fb;
 
-const fade = { hidden:{opacity:0,y:12}, show:{opacity:1,y:0,transition:{type:"spring",stiffness:120}} };
+import {
+  addDoc,
+  collection,
+  serverTimestamp,
+} from "firebase/firestore";
 
-export default function Contato(){
+/* Guardar origem para retorno pós-login */
+function saveFrom(location) {
+  const from = { pathname: location.pathname, search: location.search, hash: location.hash, state: location.state ?? null };
+  try { sessionStorage.setItem("auth.from", JSON.stringify(from)); } catch {}
+}
+
+export default function Contato() {
   const { user } = useAuth();
   const toast = useToast();
+  const nav = useNavigate();
+  const location = useLocation();
 
-  const [form, setForm] = useState({
-    name: "", email: "", phone: "", subject: "", message: "",
-  });
-  const [sending, setSending] = useState(false);
+  const preset = location.state || {};
+  const [subject, setSubject] = useState(preset.subject || "");
+  const [productId, setProductId] = useState(preset.productId || "");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  useEffect(()=>{
+  useEffect(() => {
     if (!user) return;
-    setForm(f=>({
-      ...f,
-      name: user.displayName || f.name,
-      email: user.email || f.email,
-      phone: user.phoneNumber || f.phone,
-    }));
-  },[user]);
+    setName(user.displayName || user.email?.split("@")[0] || "");
+  }, [user]);
 
-  function onChange(e){
-    const { name, value } = e.target;
-    setForm(f=> ({...f, [name]: value}));
-  }
+  const disabled = useMemo(() => {
+    return !subject?.trim() || !message?.trim() || !user || busy;
+  }, [subject, message, user, busy]);
 
-  function validate(){
-    if (!form.name.trim()) return "Informe seu nome.";
-    if (!form.email.trim() && !form.phone.trim()) return "Informe e-mail ou telefone.";
-    if (!form.subject.trim()) return "Informe o assunto.";
-    if (!form.message.trim()) return "Escreva sua mensagem.";
-    return null;
-  }
-
-  async function onSubmit(e){
+  async function handleSubmit(e) {
     e.preventDefault();
-    const err = validate();
-    if (err) { toast.error(err); return; }
-
-    // rate limit simples (cliente)
-    const last = Number(localStorage.getItem("contact:last") || 0);
-    if (Date.now() - last < 60_000) {
-      toast.info("Aguarde um minuto antes de enviar outra mensagem.");
+    if (!user) {
+      toast.info("Entre na sua conta para enviar a mensagem.");
+      saveFrom(location);
+      nav("/login", { state: { mode: "signin", from: { pathname: "/contato", state: { subject, productId } } } });
+      return;
+    }
+    if (!subject?.trim() || !message?.trim()) {
+      toast.info("Preencha pelo menos Assunto e Mensagem.");
       return;
     }
 
-    setSending(true);
-    try{
-      await addDoc(collection(db,"contactMessages"), {
-        ...form,
-        uid: user?.uid || null,
-        createdAt: new Date(),
-        read: false,
+    try {
+      setBusy(true);
+      await addDoc(collection(db, "contactMessages"), {
+        uid: user.uid,
+        subject: subject.trim(),
+        productId: productId || null,
+        name: name?.trim() || null,
+        email: user.email || null,
+        phone: phone?.trim() || null,
+        message: message.trim(),
+        status: "new",
+        createdAt: serverTimestamp(),
       });
-      localStorage.setItem("contact:last", String(Date.now()));
-      toast.success("Mensagem enviada. Em breve entraremos em contato!");
-      setForm({ name:"", email:"", phone:"", subject:"", message:"" });
-    }catch(e){
-      toast.error("Não foi possível enviar agora.");
-    }finally{
-      setSending(false);
+      toast.success("Mensagem enviada! Entraremos em contato.");
+      setMessage("");
+      // opcional: redirecionar para home
+      // nav("/", { replace: true });
+    } catch (e) {
+      console.error(e);
+      toast.error("Não foi possível enviar. Tente novamente.");
+    } finally {
+      setBusy(false);
     }
+  }
+
+  function forceLogin() {
+    saveFrom(location);
+    nav("/login", { state: { mode: "signin", from: { pathname: "/contato", state: { subject, productId } } } });
   }
 
   return (
     <div className="section">
       <div className="container">
-        <motion.h1 className="h1" variants={fade} initial="hidden" animate="show">Fale com a gente</motion.h1>
-        <p className="lead mt-2">Tire dúvidas, solicite informações ou deixe seu feedback.</p>
+        <motion.div
+          className="card"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: "spring", stiffness: 120, damping: 18 }}
+          style={{ padding: 20, display: "grid", gap: 16 }}
+        >
+          <div className="h1">Solicitar orçamento / Contato</div>
+          <div className="small" style={{ color: "var(--muted)" }}>
+            Preencha os dados abaixo. Responderemos rapidamente com uma proposta.
+          </div>
 
-        <div className="mt-6" style={{ display:"grid", gridTemplateColumns:"1.1fr .9fr", gap:24 }}>
-          {/* Formulário */}
-          <form className="card" onSubmit={onSubmit} style={{ display:"grid", gap:12 }}>
-            <label className="small">Nome
-              <input name="name" value={form.name} onChange={onChange}
-                placeholder="Seu nome completo"
-                style={{ width:"100%", borderRadius:12, border:"1px solid var(--border)", background:"#ffffff0f", color:"var(--text)", padding:"10px 12px" }}
-              />
-            </label>
+          {!user && (
+            <div className="glass" style={{ padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div className="small" style={{ color: "var(--muted)" }}>Você precisa estar logado para enviar mensagens.</div>
+              <button className="btn" onClick={forceLogin}>Entrar</button>
+            </div>
+          )}
 
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-              <label className="small">E-mail
-                <input name="email" type="email" value={form.email} onChange={onChange}
-                  placeholder="voce@email.com"
-                  style={{ width:"100%", borderRadius:12, border:"1px solid var(--border)", background:"#ffffff0f", color:"var(--text)", padding:"10px 12px" }}
+          <form onSubmit={handleSubmit} className="grid" style={{ gap: 12 }}>
+            <div className="grid grid-2" style={{ gap: 12 }}>
+              <div>
+                <label className="small">Assunto*</label>
+                <input
+                  className="input"
+                  placeholder="Ex.: Orçamento: Quadra Indoor Pro"
+                  value={subject}
+                  onChange={e => setSubject(e.target.value)}
+                  required
                 />
-              </label>
-              <label className="small">Telefone
-                <input name="phone" value={form.phone} onChange={onChange}
-                  placeholder="(xx) xxxxx-xxxx"
-                  style={{ width:"100%", borderRadius:12, border:"1px solid var(--border)", background:"#ffffff0f", color:"var(--text)", padding:"10px 12px" }}
+              </div>
+              <div>
+                <label className="small">Produto (opcional)</label>
+                <input
+                  className="input"
+                  placeholder="Ex.: indoor-pro / outdoor-premium / club-kit"
+                  value={productId}
+                  onChange={e => setProductId(e.target.value)}
                 />
-              </label>
+              </div>
             </div>
 
-            <label className="small">Assunto
-              <input name="subject" value={form.subject} onChange={onChange}
-                placeholder="Sobre o que é?"
-                style={{ width:"100%", borderRadius:12, border:"1px solid var(--border)", background:"#ffffff0f", color:"var(--text)", padding:"10px 12px" }}
-              />
-            </label>
+            <div className="grid grid-2" style={{ gap: 12 }}>
+              <div>
+                <label className="small">Seu nome</label>
+                <input
+                  className="input"
+                  placeholder="Seu nome"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="small">Telefone (opcional)</label>
+                <input
+                  className="input"
+                  placeholder="(DDD) 9 9999-9999"
+                  value={phone}
+                  onChange={e => setPhone(e.target.value)}
+                />
+              </div>
+            </div>
 
-            <label className="small">Mensagem
-              <textarea name="message" rows={6} value={form.message} onChange={onChange}
-                placeholder="Escreva sua mensagem..."
-                style={{ width:"100%", borderRadius:12, border:"1px solid var(--border)", background:"#ffffff0f", color:"var(--text)", padding:"10px 12px" }}
+            <div>
+              <label className="small">Mensagem*</label>
+              <textarea
+                className="input"
+                style={{ minHeight: 120 }}
+                placeholder="Conte um pouco do seu projeto: local, indoor/outdoor, prazos e quantas quadras."
+                value={message}
+                onChange={e => setMessage(e.target.value)}
+                required
               />
-            </label>
+            </div>
 
-            <div style={{ display:"flex", gap:10, justifyContent:"flex-end" }}>
-              <button className="btn" type="button" onClick={()=> setForm({ name:"", email:"", phone:"", subject:"", message:"" })}>
-                Limpar
-              </button>
-              <button className="btn btn-primary" type="submit" disabled={sending}>
-                {sending ? "Enviando..." : "Enviar"}
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <button type="button" className="btn" onClick={() => nav(-1)}>Voltar</button>
+              <button type="submit" className="btn btn-primary" disabled={disabled}>
+                {busy ? "Enviando..." : "Enviar"}
               </button>
             </div>
           </form>
-
-          {/* Informações / Mapa */}
-          <div className="card" style={{ display:"grid", gap:12 }}>
-            <div className="h2">Informações</div>
-            <div className="small" style={{ color:"var(--muted)" }}>
-              Endereço, horários e canais de contato do seu clube (edite depois).
-            </div>
-            <div>
-              <div><strong>Endereço:</strong> Rua Exemplo, 123 — Sua Cidade</div>
-              <div className="mt-1"><strong>WhatsApp:</strong> (00) 00000-0000</div>
-              <div className="mt-1"><strong>E-mail:</strong> contato@seudominio.com</div>
-              <div className="mt-1"><strong>Horário:</strong> 08:00 às 22:30</div>
-            </div>
-            <div className="mt-2" style={{ borderRadius:12, overflow:"hidden", border:"1px solid var(--border)" }}>
-              {/* Troque o src pela URL do seu mapa */}
-              <iframe
-                title="Mapa"
-                src="https://maps.google.com/maps?q=S%C3%A3o%20Paulo&t=&z=13&ie=UTF8&iwloc=&output=embed"
-                width="100%" height="260" style={{ border:0 }}
-                loading="lazy" referrerPolicy="no-referrer-when-downgrade"
-              />
-            </div>
-          </div>
-        </div>
-
+        </motion.div>
       </div>
     </div>
   );

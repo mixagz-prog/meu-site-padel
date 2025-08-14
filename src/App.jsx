@@ -1,34 +1,42 @@
 // src/App.jsx
 import { Routes, Route, Navigate } from "react-router-dom";
-import Navbar from "./components/Navbar.jsx";
+import Header from "./components/Header.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 
 // Páginas
 import Home from "./pages/Home.jsx";
+import Quadras from "./pages/Quadras.jsx";
 import Agendamento from "./pages/Agendamento.jsx";
+import Sobre from "./pages/Sobre.jsx";
+import Contato from "./pages/Contato.jsx";
 import Hoje from "./pages/Hoje.jsx";
 import Materiais from "./pages/Materiais.jsx";
 import Diferenciais from "./pages/Diferenciais.jsx";
-import Contato from "./pages/Contato.jsx";
 import Login from "./pages/Login.jsx";
 import MinhasReservas from "./pages/MinhasReservas.jsx";
 import MinhaConta from "./pages/MinhaConta.jsx";
 import Admin from "./pages/Admin.jsx";
+import Verificar from "./pages/Verificar.jsx";
+import Aguarde from "./pages/Aguarde.jsx";
 
 export default function App() {
   return (
     <>
-      <Navbar />
+      <Header />
       <Routes>
         <Route path="/" element={<Home />} />
 
         {/* públicas */}
+        <Route path="/quadras" element={<Quadras />} />
+        <Route path="/diferenciais" element={<Diferenciais />} />
+        <Route path="/materiais" element={<Materiais />} />
         <Route path="/agendamento" element={<Agendamento />} />
         <Route path="/hoje" element={<Hoje />} />
-        <Route path="/materiais" element={<Materiais />} />
-        <Route path="/diferenciais" element={<Diferenciais />} />
+        <Route path="/sobre" element={<Sobre />} />
         <Route path="/contato" element={<Contato />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/verificar" element={<Verificar />} />
+        <Route path="/aguarde" element={<Aguarde />} />
 
         {/* protegidas */}
         <Route
@@ -50,7 +58,7 @@ export default function App() {
         <Route
           path="/admin"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute requireAdmin>
               <Admin />
             </ProtectedRoute>
           }

@@ -1,167 +1,272 @@
 // src/pages/Home.jsx
-import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
+import { useToast } from "../context/ToastContext.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
 
-const fade = { hidden:{opacity:0,y:16}, show:{opacity:1,y:0,transition:{type:"spring",stiffness:120}} };
-const pop  = { hidden:{opacity:0,scale:.96}, show:{opacity:1,scale:1,transition:{type:"spring",stiffness:140}} };
+/* Util: salvar rota de origem para retorno pós-login */
+function saveFrom(location) {
+  const from = {
+    pathname: location.pathname,
+    search: location.search,
+    hash: location.hash,
+    state: location.state ?? null,
+  };
+  try { sessionStorage.setItem("auth.from", JSON.stringify(from)); } catch {}
+  return from;
+}
+
+/* Componente de seção reutilizável */
+const Section = ({ title, children }) => (
+  <section style={{ padding: "48px 0", borderTop: "1px solid #232323" }}>
+    <div className="container">
+      <h2 className="h2" style={{ marginBottom: 14 }}>{title}</h2>
+      <div className="prose" style={{ color: "#d1d5db" }}>{children}</div>
+    </div>
+  </section>
+);
+
+/* "Produto" unificado para CTA de orçamento */
+const UNIFIED_COURT = {
+  id: "nossa-quadra-inout",
+  name: "Nossa Quadra Indoor/Outdoor",
+  subtitle:
+    "Estrutura galvanizada a quente com dupla pintura eletrostática, vidro temperado 12 mm certificado e fixações em inox 304.",
+  priceStart: "a partir de R$ 159.000",
+  leadTime: "Instalação em 30–60 dias",
+  hero: "/assets/courts/indoor-outdoor-hero.jpg", // coloque a imagem em public/assets/courts/
+  highlights: [
+    "Vidro 12 mm (EN 12150-1)",
+    "Tratamento anticorrosão total",
+    "Estrutura com reforços laterais",
+    "LED IP65 anti-ofuscamento",
+    "Grama 12 mm alta densidade",
+    "Cores e branding personalizados",
+  ],
+  specs: [
+    "Aço galvanizado a quente",
+    "Dupla pintura eletrostática",
+    "Fixações e acessórios em inox 304",
+    "Gradil 4 mm 50×50",
+    "Iluminação ~300–500 lux",
+  ],
+};
 
 export default function Home() {
+  const { user } = useAuth();
+  const toast = useToast();
+  const nav = useNavigate();
+  const location = useLocation();
+
+  function onRequestQuote(product) {
+    if (!user) {
+      // guarda de onde veio e já prepara redirecionamento ao contato com assunto
+      saveFrom(location);
+      toast.info("Entre na sua conta para solicitar um orçamento.");
+      nav("/login", {
+        state: {
+          mode: "signin",
+          from: {
+            pathname: "/contato",
+            state: {
+              subject: `Orçamento: ${product?.name || "Quadra"}`,
+              productId: product?.id,
+            },
+          },
+        },
+      });
+      return;
+    }
+    nav("/contato", {
+      state: {
+        subject: `Orçamento: ${product?.name || "Quadra"}`,
+        productId: product?.id,
+      },
+    });
+  }
+
   return (
-    <div>
+    <div style={{ background: "#0a0a0a", color: "#fff" }}>
+      {/* ===================== HERO UNIFICADO (Home + Quadras) ===================== */}
+      <motion.article
+        initial={{ opacity: 0, y: 14, scale: 0.99 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ type: "spring", stiffness: 120, damping: 18 }}
+        className="card"
+        style={{
+          marginTop: 0,
+          borderRadius: 16,
+          overflow: "hidden",
+          padding: 0,
+          border: "1px solid var(--border)",
+          boxShadow: "0 12px 28px rgba(0,0,0,0.45)",
+          isolation: "isolate",
+        }}
+      >
+        <div style={{ position: "relative" }}>
+          {/* Imagem de fundo */}
+          <img
+            src={UNIFIED_COURT.hero}
+            alt={UNIFIED_COURT.name}
+            style={{
+              width: "100%",
+              height: 460,
+              objectFit: "cover",
+              display: "block",
+              filter: "saturate(1.05) contrast(1.02)",
+            }}
+          />
 
-      {/* HERO */}
-      <section className="section" style={{ paddingTop: 64 }}>
-        <div className="container">
-          <div className="card" style={{ overflow:"hidden", position:"relative", padding:0 }}>
-            {/* background image / fallback */}
-            <div
-              style={{
-                position:"absolute", inset:0,
-                backgroundImage: `url(/images/home/hero.jpg)`,
-                backgroundSize:"cover", backgroundPosition:"center",
-                filter:"brightness(.45) saturate(1)",
-              }}
-              onError={(e)=>{ e.currentTarget.style.background = "radial-gradient(800px 400px at 20% 0, rgba(255,122,0,.15), transparent 60%), #0a0a0a"; }}
-            />
-            {/* gradient overlay laranja sutil */}
-            <div style={{
-              position:"absolute", inset:0,
-              background:"radial-gradient(900px 500px at 120% -10%, rgba(255,122,0,.18), transparent 60%)"
-            }}/>
+          {/* Overlays: vinheta + leve gradiente para contraste do texto */}
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              inset: 0,
+              background:
+                "linear-gradient(180deg, rgba(0,0,0,.10) 0%, rgba(0,0,0,.35) 45%, rgba(11,18,32,.82) 100%)",
+            }}
+          />
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              inset: 0,
+              background:
+                "radial-gradient(900px 500px at 8% 18%, rgba(255,122,0,.22), transparent 55%)",
+              mixBlendMode: "screen",
+              pointerEvents: "none",
+            }}
+          />
 
-            <div style={{ position:"relative", padding:"54px min(6vw, 48px)", display:"grid", gap:16 }}>
-              <motion.h1 className="h1" variants={fade} initial="hidden" animate="show">
-                Padel com padrão de excelência
-              </motion.h1>
-              <motion.p className="lead" variants={fade} initial="hidden" animate="show">
-                Agendamento rápido, eventos com fila inteligente e materiais premium.
-                Um sistema profissional, no melhor estilo preto + laranja.
-              </motion.p>
-
-              <motion.div variants={fade} initial="hidden" animate="show" style={{ display:"flex", gap:10, flexWrap:"wrap", marginTop:8 }}>
-                <Link to="/agendamento" className="btn btn-primary">Agendar agora</Link>
-                <Link to="/materiais" className="btn">Ver materiais</Link>
-              </motion.div>
-
-              <motion.div variants={fade} initial="hidden" animate="show" style={{ display:"flex", gap:8, flexWrap:"wrap", marginTop:14 }}>
-                <span className="badge">⚡ reservas em 2 cliques</span>
-                <span className="badge">🎟️ eventos com assentos e fila</span>
-                <span className="badge">🛡️ regras anti-no-show</span>
-              </motion.div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* DESTAQUES */}
-      <section className="section" style={{ paddingTop: 24 }}>
-        <div className="container grid grid-3">
-          {[
-            {icon:"🕒", title:"Agendamento ágil", text:"Horários dinâmicos (08–18 em 1h, 18–22:30 em 1h30) com antecedência mínima de 20min."},
-            {icon:"👥", title:"Eventos inteligentes", text:"Assentos, lista de espera, tranca de lista e promoção automática pelo admin."},
-            {icon:"🧰", title:"Materiais premium", text:"Qualidade e durabilidade para quadras e acessórios de alto nível."},
-          ].map((f,i)=>(
-            <motion.div key={i} className="glass" variants={pop} initial="hidden" whileInView="show" viewport={{ once:true, amount:.4 }} style={{ padding:16 }}>
-              <div style={{ fontSize:28 }}>{f.icon}</div>
-              <div className="h2 mt-2" style={{ fontSize:20 }}>{f.title}</div>
-              <div className="small mt-1" style={{ color:"var(--muted)" }}>{f.text}</div>
-            </motion.div>
-          ))}
-        </div>
-      </section>
-
-      {/* MATERIAIS EM DESTAQUE */}
-      <section className="section">
-        <div className="container">
-          <div className="h2">Materiais em destaque</div>
-          <div className="grid grid-3 mt-3">
-            {[
-              {img:"/images/home/material-1.jpg", title:"Gramado sintético X-Pro", desc:"Tração perfeita e desgaste mínimo para partidas intensas."},
-              {img:"/images/home/material-2.jpg", title:"Iluminação LED Pro", desc:"Uniforme, econômica e com índice de reprodução de cor superior."},
-              {img:"/images/home/material-3.jpg", title:"Vidros temperados 12mm", desc:"Segurança e visibilidade cristalina, aprovados para alto nível."},
-            ].map((m,i)=>(
-              <motion.article key={i} className="card" variants={pop} initial="hidden" whileInView="show" viewport={{ once:true, amount:.35 }} style={{ overflow:"hidden" }}>
-                <div style={{
-                  height:180, backgroundImage:`url(${m.img})`, backgroundSize:"cover", backgroundPosition:"center",
-                  borderRadius:"10px", border:"1px solid var(--border)"
-                }}
-                onError={(e)=>{ e.currentTarget.style.background = "linear-gradient(135deg, rgba(255,122,0,.15), rgba(255,122,0,.05))"; }}
-                />
-                <div className="h2 mt-2" style={{ fontSize:18 }}>{m.title}</div>
-                <div className="small mt-1" style={{ color:"var(--muted)" }}>{m.desc}</div>
-                <div className="mt-2">
-                  <Link to="/materiais" className="btn">Ver detalhes</Link>
-                </div>
-              </motion.article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* DIFERENCIAIS */}
-      <section className="section">
-        <div className="container card">
-          <div className="grid" style={{ gridTemplateColumns:"1.2fr .8fr" }}>
-            <div>
-              <div className="h2">Por que jogar aqui?</div>
-              <ul className="small mt-2" style={{ color:"var(--muted)", lineHeight:1.6 }}>
-                <li>• Sistema de reservas com confirmação e regras anti-abuso.</li>
-                <li>• Eventos com assentos, fila e tranca (somente admin altera).</li>
-                <li>• Painel do admin com ranking, bloqueios e mensagens de contato.</li>
-                <li>• Materiais selecionados e curadoria técnica de ponta.</li>
-              </ul>
-              <div className="mt-3" style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
-                <Link to="/diferenciais" className="btn">Ver diferenciais</Link>
-                <Link to="/contato" className="btn btn-primary">Solicitar orçamento</Link>
-              </div>
-            </div>
-            <div className="hide-sm">
+          {/* Conteúdo centralizado (banner) */}
+          <div
+            className="container"
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 16,
+              textAlign: "center",
+            }}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ type: "spring", stiffness: 140, damping: 18, delay: 0.05 }}
+              style={{ maxWidth: 980 }}
+            >
               <div
                 style={{
-                  height:220, borderRadius:12, border:"1px solid var(--border)",
-                  backgroundImage:"url(/images/home/quadra.jpg)",
-                  backgroundSize:"cover", backgroundPosition:"center",
+                  display: "inline-flex",
+                  padding: "6px 10px",
+                  borderRadius: 999,
+                  border: "1px solid rgba(255,255,255,.14)",
+                  background:
+                    "linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03))",
+                  color: "#ffb06b",
+                  fontWeight: 800,
+                  letterSpacing: ".2px",
+                  marginBottom: 10,
                 }}
-                onError={(e)=>{ e.currentTarget.style.background = "linear-gradient(135deg, rgba(255,122,0,.15), rgba(255,122,0,.05))"; }}
-              />
-            </div>
+              >
+                Quadras de padel premium · Projeto à execução
+              </div>
+
+              <h1 className="h1" style={{ fontSize: "clamp(30px, 5vw, 48px)", marginBottom: 10 }}>
+                Reserva Padel — excelência em quadras premium
+              </h1>
+
+              <p
+                className="lead"
+                style={{
+                  maxWidth: 900,
+                  margin: "0 auto",
+                  color: "#d1d5db",
+                }}
+              >
+                {UNIFIED_COURT.subtitle}
+              </p>
+            </motion.div>
           </div>
         </div>
-      </section>
 
-      {/* DEPOIMENTOS */}
-      <section className="section">
-        <div className="container">
-          <div className="h2">O que falam de nós</div>
-          <div className="grid grid-3 mt-3">
-            {[
-              {name:"Marcos", text:"“Reservar ficou fácil demais. Em 2 cliques eu garanto meu horário.”"},
-              {name:"Giulia", text:"“Eventos com fila e promoção automática evitaram confusão. Profissional!”"},
-              {name:"Rafa", text:"“Materiais de primeira, iluminação top. Experiência premium.”"},
-            ].map((t,i)=>(
-              <motion.blockquote key={i} className="glass" variants={pop} initial="hidden" whileInView="show" viewport={{ once:true, amount:.3 }} style={{ padding:16 }}>
-                <div className="small" style={{ color:"var(--muted)" }}>{t.text}</div>
-                <div className="mt-2" style={{ fontWeight:800 }}>{t.name}</div>
-              </motion.blockquote>
+        {/* Corpo do hero: badges, highlights, specs e CTAs finais */}
+        <div style={{ padding: 16, display: "grid", gap: 14 }}>
+          {/* Badges de preço/prazo */}
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+            <span className="badge" style={{ fontWeight: 800 }}>{UNIFIED_COURT.priceStart}</span>
+            <span className="badge">{UNIFIED_COURT.leadTime}</span>
+            <span className="badge">Projeto executivo e montagem inclusos</span>
+          </div>
+
+          {/* Highlights em 3 colunas */}
+          <div className="grid grid-3 mt-1">
+            {UNIFIED_COURT.highlights.map((h, i) => (
+              <div key={`h-${i}`} className="glass" style={{ padding: 14 }}>
+                <div style={{ fontWeight: 800 }}>{h}</div>
+                <div className="small" style={{ color: "var(--muted)" }}>
+                  {h.includes("Vidro 12") && " Temperado 12 mm conforme EN 12150-1, segurança e estabilidade."}
+                  {h.includes("anticorrosão") && " Galvanização + pintura dupla protegem em regiões litorâneas."}
+                  {h.includes("LED") && " Iluminação uniforme com mínimo ofuscamento para jogos noturnos."}
+                  {h.includes("reforços") && " Conjunto rígido para menos vibração e maior conforto."}
+                  {h.includes("Grama") && " Tapete de alto desempenho com ótimo quique e tração."}
+                  {h.includes("branding") && " Paleta e identidade do seu clube aplicadas na estrutura."}
+                </div>
+              </div>
             ))}
           </div>
-        </div>
-      </section>
 
-      {/* CTA FINAL */}
-      <section className="section" style={{ paddingBottom: 80 }}>
-        <div className="container card" style={{ textAlign:"center" }}>
-          <div className="h2">Pronto para jogar?</div>
-          <p className="small" style={{ color:"var(--muted)", marginTop:6 }}>
-            Escolha seu horário e confirme em poucos segundos.
-          </p>
-          <div className="mt-3" style={{ display:"flex", gap:10, justifyContent:"center", flexWrap:"wrap" }}>
-            <Link to="/agendamento" className="btn btn-primary">Agendar agora</Link>
-            <Link to="/contato" className="btn">Fale conosco</Link>
+          {/* Specs essenciais */}
+          <div className="glass" style={{ padding: 14 }}>
+            <div style={{ fontWeight: 800, marginBottom: 6 }}>Especificações essenciais</div>
+            <div className="small" style={{ color: "var(--muted)" }}>
+              {UNIFIED_COURT.specs.join(" • ")}
+            </div>
+          </div>
+
+          {/* CTAs finais — somente 2 como você pediu */}
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
+            <button className="btn btn-primary" onClick={() => onRequestQuote(UNIFIED_COURT)}>
+              Solicitar orçamento
+            </button>
+            <NavLink to="/materiais" className="btn">
+              Ver materiais
+            </NavLink>
           </div>
         </div>
-      </section>
+      </motion.article>
 
+      {/* ===================== Seções adicionais (conteúdo institucional) ===================== */}
+      <Section title="Por que nossas quadras?">
+        <ul style={{ lineHeight: 1.7 }}>
+          <li>
+            <b>Estrutura premium:</b> aço galvanizado a quente + pintura eletrostática dupla, com reforços laterais para máxima rigidez.
+          </li>
+          <li>
+            <b>Vidros 12&nbsp;mm certificados:</b> padrão de segurança, resistência e melhor resposta de jogo.
+          </li>
+          <li>
+            <b>Certificações internacionais:</b> fabricação conforme SGC e normas de referência.
+          </li>
+          <li>
+            <b>Acessórios inox 304:</b> parafusos e ferragens em inox garantem mais durabilidade nas áreas externas.
+          </li>
+        </ul>
+      </Section>
+
+      <Section title="Entrega completa, do projeto à execução">
+        <ul style={{ lineHeight: 1.7 }}>
+          <li>Projeto estrutural e layout.</li>
+          <li>Terraplenagem, base e nivelamento do piso.</li>
+          <li>Montagem e pintura da estrutura metálica.</li>
+          <li>Instalação dos vidros 12&nbsp;mm e telas galvanizadas.</li>
+          <li>Aplicação da grama e marcações.</li>
+          <li>Iluminação e acessórios profissionais.</li>
+        </ul>
+      </Section>
     </div>
   );
 }
