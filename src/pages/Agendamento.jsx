@@ -1,28 +1,22 @@
-// src/pages/Agendamento.jsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { useAuth } from "../context/AuthContext";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useToast } from "../context/ToastContext.jsx";
+import { useAuth } from "../context/AuthContext";
 import ModalCpf from "../components/ModalCpf.jsx";
 
 import { db } from "../lib/firebase";
-import { setCpfMapping } from "../lib/firebase";
 
 import {
   collection,
-  collectionGroup,
   doc,
   getDoc,
-  getDocs,
   onSnapshot,
   orderBy,
   query,
   runTransaction,
   serverTimestamp,
   setDoc,
-  updateDoc,
-  where,
-  writeBatch,
 } from "firebase/firestore";
 
 import { isValidCpf, maskCpf, normalizeCpf } from "../utils/cpf";
@@ -43,13 +37,13 @@ function genSlots(){
 }
 const ALL_SLOTS = genSlots();
 
-/* ====== Calendário inline (sem libs) ====== */
+/* ====== Calendário inline ====== */
 function CalendarInline({ value, onChange, minDate }) {
   const [view, setView] = useState(startOfDay(value || new Date()));
   useEffect(()=>{ if(value) setView(startOfDay(value)); },[value]);
 
   const year = view.getFullYear();
-  const month = view.getMonth(); // 0..11
+  const month = view.getMonth();
   const first = new Date(year, month, 1);
   const startWeekDay = (first.getDay()+6)%7; // segunda=0
   const daysInMonth = new Date(year, month+1, 0).getDate();
@@ -69,17 +63,21 @@ function CalendarInline({ value, onChange, minDate }) {
         </div>
         <button className="btn" onClick={()=>setView(new Date(year, month+1, 1))}>▶</button>
       </div>
+
       <div className="calendar-week">
-        {["S", "T", "Q", "Q", "S", "S", "D"].map((d)=> <div key={d} className="calendar-weekday">{d}</div>)}
+        {["S","T","Q","Q","S","S","D"].map((d,i)=>(
+          <div key={`${d}-${i}`} className="calendar-weekday">{d}</div>
+        ))}
       </div>
+
       <div className="calendar-grid">
         {cells.map((d,i)=>{
-          if (!d) return <div key={i} className="calendar-cell calendar-empty"/>;
+          if (!d) return <div key={`empty-${i}`} className="calendar-cell calendar-empty"/>;
           const disabled = d < min;
           const selected = value && toDateKey(d) === toDateKey(value);
           return (
             <button
-              key={i}
+              key={toDateKey(d)}
               className={`calendar-cell ${selected ? "selected" : ""}`}
               disabled={disabled}
               onClick={()=> onChange(startOfDay(d))}
@@ -96,17 +94,19 @@ function CalendarInline({ value, onChange, minDate }) {
 export default function Agendamento(){
   const { user } = useAuth();
   const toast = useToast();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   /* ====== Estado principal ====== */
   const [selectedDate, setSelectedDate] = useState(startOfDay(new Date()));
   const dateKey = toDateKey(selectedDate);
-  const [reservations, setReservations] = useState({}); // map slotKey -> reserva
-  const [events, setEvents] = useState({});             // map slotKey -> evento
+  const [reservations, setReservations] = useState({}); // slotKey -> reserva
+  const [events, setEvents] = useState({});             // slotKey -> evento
   const [seatsBySlot, setSeatsBySlot] = useState({});   // slotKey -> seats[]
   const [waitlistBySlot, setWaitlistBySlot] = useState({}); // slotKey -> [uids]
   const [profile, setProfile] = useState(null);
 
-  /* ====== Carregar perfil para checar CPF ====== */
+  /* ====== Carregar perfil p/ checar CPF (somente logado) ====== */
   useEffect(()=>{
     let off=false;
     (async()=>{
@@ -119,44 +119,52 @@ export default function Agendamento(){
     return ()=>{ off=true; };
   },[user]);
 
-  /* ====== Stream das reservas do dia ====== */
+  /* ====== Streams — só quando logado (evita permission-denied) ====== */
   useEffect(()=>{
-    const unsub = onSnapshot(query(collection(db,"reservations",dateKey,"slots")), snap=>{
-      const map={}; snap.forEach(d=> map[d.id]=d.data()); setReservations(map);
-    });
+    if (!user) { setReservations({}); return; }
+    const unsub = onSnapshot(query(collection(db,"reservations",dateKey,"slots")),
+      snap => { const map={}; snap.forEach(d=> map[d.id]=d.data()); setReservations(map); },
+      err  => { console.warn("reservations snapshot error:", err.code); }
+    );
     return ()=>unsub();
-  },[dateKey]);
+  },[user, dateKey]);
 
-  /* ====== Stream dos eventos do dia ====== */
   useEffect(()=>{
-    const unsub = onSnapshot(query(collection(db,"events",dateKey,"slots")), snap=>{
-      const map={}; snap.forEach(d=> map[d.id]=d.data()); setEvents(map);
-    });
+    if (!user) { setEvents({}); return; }
+    const unsub = onSnapshot(query(collection(db,"events",dateKey,"slots")),
+      snap => { const map={}; snap.forEach(d=> map[d.id]=d.data()); setEvents(map); },
+      err  => { console.warn("events snapshot error:", err.code); }
+    );
     return ()=>unsub();
-  },[dateKey]);
+  },[user, dateKey]);
 
-  /* ====== Seats / Waitlist por evento ====== */
   useEffect(()=>{
-    const unsubsSeats=[]; const unsubsWait=[];
+    if (!user) { setSeatsBySlot({}); setWaitlistBySlot({}); return; }
+    const unsubs=[];
     Object.keys(events).forEach(slotKey=>{
       const sCol = collection(db,"events",dateKey,"slots",slotKey,"seats");
       const wCol = collection(db,"events",dateKey,"slots",slotKey,"waitlist");
 
-      const us = onSnapshot(query(sCol, orderBy("index","asc")), snap=>{
-        const arr=[]; snap.forEach(d=> arr.push({ id:d.id, ...d.data() }));
-        setSeatsBySlot(prev=>({...prev, [slotKey]:arr}));
-      });
-      const uw = onSnapshot(query(wCol, orderBy("createdAt","asc")), snap=>{
-        const arr=[]; snap.forEach(d=> arr.push({ id:d.id, ...d.data() }));
-        setWaitlistBySlot(prev=>({...prev, [slotKey]:arr}));
-      });
+      unsubs.push(onSnapshot(query(sCol, orderBy("index","asc")),
+        snap => {
+          const arr=[]; snap.forEach(d=> arr.push({ id:d.id, ...d.data() }));
+          setSeatsBySlot(prev=>({...prev, [slotKey]:arr}));
+        },
+        err => console.warn("seats snapshot error:", err.code)
+      ));
 
-      unsubsSeats.push(us); unsubsWait.push(uw);
+      unsubs.push(onSnapshot(query(wCol, orderBy("createdAt","asc")),
+        snap => {
+          const arr=[]; snap.forEach(d=> arr.push({ id:d.id, ...d.data() }));
+          setWaitlistBySlot(prev=>({...prev, [slotKey]:arr}));
+        },
+        err => console.warn("waitlist snapshot error:", err.code)
+      ));
     });
-    return ()=>{ unsubsSeats.forEach(u=>u()); unsubsWait.forEach(u=>u()); };
-  },[events, dateKey]);
+    return ()=>{ unsubs.forEach(u=>u()); };
+  },[user, events, dateKey]);
 
-  /* ====== Lógica do CPF (modal) ====== */
+  /* ====== CPF modal ====== */
   const [cpfOpen, setCpfOpen] = useState(false);
   const [cpfValue, setCpfValue] = useState("");
   const [cpfStatus, setCpfStatus] = useState("idle");
@@ -190,6 +198,9 @@ export default function Agendamento(){
       const clean = normalizeCpf(cpfValue);
       if (!isValidCpf(clean)) { setCpfStatus("invalid"); return; }
       setCpfSaving(true);
+
+      // mapeamento via cloud function utilitária (rules: create se não existir)
+      const { setCpfMapping } = await import("../lib/firebase"); // lazy p/ não carregar cedo
       const res = await setCpfMapping(user.uid, clean);
       if (!res?.ok) {
         setCpfStatus(res?.reason === "used" ? "used" : "error");
@@ -211,8 +222,14 @@ export default function Agendamento(){
     const ctx = pendingReserveRef.current;
     if (ctx?.fn && ctx?.slotKey) ctx.fn(ctx.slotKey);
   }
+
+  /* ====== Gate: se não logado, manda pro login e volta depois ====== */
   function openCpfThenProceed(slotKey, fn) {
-    if (!user) { toast.info("Faça login para continuar."); return; }
+    if (!user) {
+      toast.info("Faça login para continuar.");
+      navigate("/login", { replace: true, state: { from: location.pathname || "/agendamento" } });
+      return;
+    }
     if (shouldPromptCpf(profile)) {
       pendingReserveRef.current = { slotKey, fn };
       setCpfValue(""); setCpfStatus("idle"); setCpfOpen(true);
@@ -221,7 +238,7 @@ export default function Agendamento(){
     fn(slotKey);
   }
 
-  /* ====== Ações: reservar horário normal ====== */
+  /* ====== Ações ====== */
   async function reserveSlot(slotKey){
     if (!user) { toast.info("Faça login para reservar."); return; }
     const now = new Date();
@@ -230,10 +247,9 @@ export default function Agendamento(){
       toast.info("Só é possível reservar com 20 minutos de antecedência.");
       return;
     }
-    if (reservations[slotKey]) { toast.info("Horário já reservado."); return; }
-
+    // Firestore rules já barram se o slot existir; aqui só tentamos criar
     try {
-      const ref = doc(db,"reservations",dateKey,"slots",slotKey);
+      const ref = doc(db,"reservations",toDateKey(selectedDate),"slots",slotKey);
       await setDoc(ref, {
         uid: user.uid,
         name: user.displayName || user.email || "Usuário",
@@ -243,11 +259,11 @@ export default function Agendamento(){
       toast.success("Reserva confirmada!");
     } catch (e) {
       console.error(e);
+      // inclui casos: email não verificado (rules), etc.
       toast.error("Não foi possível reservar. Verifique sua verificação de e-mail/telefone.");
     }
   }
 
-  /* ====== Ações: participar de evento (assento/fila) ====== */
   async function joinEvent(slotKey){
     if (!user) { toast.info("Faça login para participar."); return; }
     const evt = events[slotKey]; if (!evt) return;
@@ -268,7 +284,6 @@ export default function Agendamento(){
         });
         toast.success("Você entrou no evento!");
       } else {
-        // entra na fila
         const wref = doc(db,"events",dateKey,"slots",slotKey,"waitlist", user.uid);
         await setDoc(wref, { createdAt: serverTimestamp() }, { merge:false });
         toast.info("Evento lotado. Você entrou na fila de espera.");
@@ -286,7 +301,6 @@ export default function Agendamento(){
       const ts = evt.slotStartAt?.toDate ? evt.slotStartAt.toDate() : (evt.slotStartAt || makeDateAt(selectedDate, keyToFloat(slotKey)));
       return { slotKey, ...evt, _start: ts };
     });
-    // Apenas futuros (não mostrar passados)
     return arr
       .filter(e => e._start.getTime() >= now.getTime())
       .sort((a,b)=> a._start - b._start);
@@ -295,7 +309,6 @@ export default function Agendamento(){
   const eventSlotKeys = useMemo(()=> new Set(Object.keys(events)), [events]);
 
   const availableSlots = useMemo(()=>{
-    // Remove slots que têm evento e slots passados/sem antecedência
     return ALL_SLOTS.filter(s=>{
       if (eventSlotKeys.has(s.key)) return false;
       const start = makeDateAt(selectedDate, s.start);
@@ -304,17 +317,15 @@ export default function Agendamento(){
     });
   },[selectedDate, eventSlotKeys, now]);
 
-  function isReservedBySomeone(k){ return !!reservations[k]; }
   function isMine(k){ return reservations[k]?.uid === user?.uid; }
 
   /* ====== UI ====== */
   return (
     <div className="section">
       <div className="container">
-
         <motion.h1 className="h1" initial={{opacity:0,y:10}} animate={{opacity:1,y:0}}>Agendamento</motion.h1>
 
-        {/* Calendário grande */}
+        {/* Calendário */}
         <div className="card mt-2">
           <CalendarInline
             value={selectedDate}
@@ -385,7 +396,7 @@ export default function Agendamento(){
           )}
         </div>
 
-        {/* Horários disponíveis (sem eventos) */}
+        {/* Horários disponíveis */}
         <div className="card mt-3">
           <div className="h2">Horários disponíveis</div>
           <div className="small" style={{ color:"var(--muted)" }}>08–18 (1h) • 18–22:30 (1h30) — antecedência mínima 20 minutos.</div>

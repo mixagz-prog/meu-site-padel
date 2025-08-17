@@ -4,98 +4,72 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { signOut as appSignOut } from "../lib/firebase";
 import NavMobile from "./NavMobile";
-
-const linkStyle = ({ isActive }) => ({
-  padding: "8px 12px",
-  borderRadius: 10,
-  border: "1px solid var(--border)",
-  background: isActive ? "linear-gradient(135deg, var(--brand), var(--brand-300))" : "#ffffff10",
-  color: isActive ? "#111" : "var(--text)",
-  textDecoration: "none",
-});
+import { CalendarDays, Layers, ShieldCheck, Mail } from "lucide-react";
 
 export default function Navbar() {
   const { user, isAdmin } = useAuth();
-  const [open, setOpen] = useState(false); // dropdown desktop
+  const [open, setOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const ref = useRef(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    function onDoc(e) {
-      if (!ref.current) return;
-      if (!ref.current.contains(e.target)) setOpen(false);
-    }
+    const onDoc = (e) => { if (!ref.current) return; if (!ref.current.contains(e.target)) setOpen(false); };
     document.addEventListener("pointerdown", onDoc);
     return () => document.removeEventListener("pointerdown", onDoc);
   }, []);
 
   return (
     <header className="nav">
-      <div className="nav-left" style={{ display: "flex", gap: 10, alignItems: "center" }}>
-        {/* Hamburger (mobile) */}
-        <button className="btn show-sm" onClick={() => setMobileOpen(true)} aria-label="Abrir menu">
-          ☰
-        </button>
+      <div className="nav-inner container">
+        {/* ESQUERDA */}
+        <div className="nav-left">
+          <button className="hamb show-sm" aria-label="Abrir menu" onClick={() => setMobileOpen(true)}>
+            <span/><span/><span/>
+          </button>
 
-        <NavLink to="/" className="brand" style={{ textDecoration: "none", fontWeight: 900, fontSize: 18 }}>
-          Meu Site Padel
-        </NavLink>
-
-        {/* Links desktop */}
-        <div className="hide-sm" style={{ display: "flex", gap: 10 }}>
-          <NavLink to="/agendamento" style={linkStyle}>Agendamento</NavLink>
-          <NavLink to="/hoje" style={linkStyle}>Hoje</NavLink>
-          <NavLink to="/materiais" style={linkStyle}>Materiais</NavLink>
-          <NavLink to="/diferenciais" style={linkStyle}>Diferenciais</NavLink>
-          <NavLink to="/contato" style={linkStyle}>Contato</NavLink>
-          {isAdmin && <NavLink to="/admin" style={linkStyle}>Admin</NavLink>}
+          <NavLink to="/" className="brand-pill">
+            <span className="brand-dot" aria-hidden />
+            Reserva Padel
+          </NavLink>
         </div>
-      </div>
 
-      <div className="nav-right" style={{ display: "flex", gap: 10, alignItems: "center" }}>
-        {user ? (
-          <div ref={ref} className="hide-sm" style={{ position: "relative" }}>
-            <button className="btn" onClick={() => setOpen(v => !v)} aria-haspopup="menu" aria-expanded={open}>
-              {user.photoURL ? (
-                <img
-                  src={user.photoURL}
-                  alt=""
-                  style={{ width: 28, height: 28, borderRadius: 999, objectFit: "cover", marginRight: 8, border: "1px solid var(--border)" }}
-                />
-              ) : (
-                <span className="badge" style={{ marginRight: 8 }}>{(user.displayName || user.email || "U").slice(0, 1)}</span>
+        {/* CENTRO – links como “pílulas” */}
+        <nav className="nav-pills hide-sm" aria-label="Principal">
+          <NavPill to="/diferenciais" icon={<ShieldCheck size={16} />}>Diferenciais</NavPill>
+          <NavPill to="/materiais"    icon={<Layers size={16} />}>Materiais</NavPill>
+          <NavPill to="/agendamento"  icon={<CalendarDays size={16} />}>Agendamento</NavPill>
+          <NavPill to="/contato"      icon={<Mail size={16} />}>Contato</NavPill>
+          {isAdmin && <NavPill to="/admin">Admin</NavPill>}
+        </nav>
+
+        {/* DIREITA – sessão/entrar */}
+        <div className="nav-right">
+          {user ? (
+            <div ref={ref} className="user-menu hide-sm">
+              <button className="btn user-trigger" onClick={() => setOpen(v=>!v)} aria-haspopup="menu" aria-expanded={open}>
+                {user.photoURL ? (
+                  <img src={user.photoURL} alt="" className="avatar" />
+                ) : (
+                  <span className="initial">{(user.displayName || user.email || "U").slice(0,1)}</span>
+                )}
+                <span className="user-name">{user.displayName || user.email || "Você"}</span>
+                {isAdmin && <span className="chip-admin">admin</span>}
+              </button>
+
+              {open && (
+                <div role="menu" className="menu">
+                  <MenuItem onClick={() => { setOpen(false); navigate("/minha-conta"); }}>Minha conta</MenuItem>
+                  <MenuItem onClick={() => { setOpen(false); navigate("/minhas-reservas"); }}>Minhas reservas</MenuItem>
+                  <hr className="divider" />
+                  <MenuItem onClick={async () => { setOpen(false); await appSignOut(); navigate("/"); }}>Sair</MenuItem>
+                </div>
               )}
-              {user.displayName || user.email || "Você"}
-              {isAdmin && <span className="badge" style={{ marginLeft: 6 }}>🔑 admin</span>}
-            </button>
-
-            {open && (
-              <div
-                role="menu"
-                style={{
-                  position: "absolute",
-                  right: 0,
-                  top: "calc(100% + 8px)",
-                  minWidth: 220,
-                  background: "rgba(17,17,19,.98)",
-                  border: "1px solid var(--border)",
-                  borderRadius: 14,
-                  boxShadow: "0 8px 24px rgba(0,0,0,.35)",
-                  padding: 8,
-                  zIndex: 60,
-                }}
-              >
-                <MenuItem onClick={() => { setOpen(false); navigate("/minha-conta"); }}>Minha conta</MenuItem>
-                <MenuItem onClick={() => { setOpen(false); navigate("/minhas-reservas"); }}>Minhas reservas</MenuItem>
-                <hr className="divider" />
-                <MenuItem onClick={async () => { setOpen(false); await appSignOut(); navigate("/"); }}>Sair</MenuItem>
-              </div>
-            )}
-          </div>
-        ) : (
-          <NavLink className="btn hide-sm" to="/login">Entrar</NavLink>
-        )}
+            </div>
+          ) : (
+            <NavLink className="nav-cta hide-sm" to="/login">Entrar</NavLink>
+          )}
+        </div>
       </div>
 
       {/* Drawer mobile */}
@@ -104,15 +78,14 @@ export default function Navbar() {
   );
 }
 
-function MenuItem({ children, onClick }) {
+function NavPill({ to, icon, children }) {
   return (
-    <button
-      role="menuitem"
-      onClick={onClick}
-      className="btn"
-      style={{ width: "100%", justifyContent: "flex-start", background: "#ffffff10", borderColor: "var(--border)", margin: 2 }}
-    >
-      {children}
-    </button>
+    <NavLink to={to} className={({isActive}) => `nav-pill ${isActive ? "active" : ""}`}>
+      {icon}{children}
+    </NavLink>
   );
+}
+
+function MenuItem({ children, onClick }) {
+  return <button role="menuitem" onClick={onClick} className="menu-item">{children}</button>;
 }

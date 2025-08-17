@@ -1,151 +1,123 @@
 // src/lib/firebase.js
-// Config via .env.local (Vite):
-// VITE_FIREBASE_API_KEY=...
-// VITE_FIREBASE_AUTH_DOMAIN=...
-// VITE_FIREBASE_PROJECT_ID=...
-// VITE_FIREBASE_STORAGE_BUCKET=...
-// VITE_FIREBASE_MESSAGING_SENDER_ID=...
-// VITE_FIREBASE_APP_ID=...
-
 import { initializeApp, getApps } from "firebase/app";
 import {
   getAuth,
   GoogleAuthProvider,
-  OAuthProvider, // Apple
+  OAuthProvider,
+  signOut as fbSignOut,
   getRedirectResult,
   RecaptchaVerifier,
   sendEmailVerification,
-  signOut as fbSignOut,
 } from "firebase/auth";
 import {
   getFirestore,
-  doc,
-  setDoc,
-  getDocs,
-  query,
-  collection,
-  where,
+  doc, getDoc, setDoc,
   serverTimestamp,
-  updateDoc,
+  collection, query, where, getDocs,
 } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
-import { normalizeCpf } from "../utils/cpf";
 
-// --- init ---
+/** ==== CONFIG DO PROJETO (copie do Console → Project settings → Web app) ==== */
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: "AIzaSyAAaXJjYmRTvt0ZUnFoDCM2S-GwrifanLw",
+  authDomain: "meu-site-de-padel.firebaseapp.com",
+  projectId: "meu-site-de-padel",
+  // ⚠️ NOME do bucket (NÃO a URL .app):
+  storageBucket: "meu-site-de-padel.appspot.com",
+  messagingSenderId: "919527451491",
+  appId: "1:919527451491:web:91ee2183de948d07294156",
+  measurementId: "G-0ZGG4XMTZC",
 };
 
+/** evita “duplicate-app” no HMR do Vite */
 const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 
+/** SDKs */
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+export const db   = getFirestore(app);
 export const storage = getStorage(app);
 
-// Providers
+/** Providers */
 export const googleProvider = new GoogleAuthProvider();
-export const appleProvider = new OAuthProvider("apple.com");
+googleProvider.setCustomParameters({ prompt: "select_account" });
 
-// Sessão / utilidades
-export async function ensureEmailVerification() {
-  const u = auth.currentUser;
-  if (!u) return;
-  if (!u.email) return;
-  if (!u.emailVerified) {
-    await sendEmailVerification(u);
+export const appleProvider  = new OAuthProvider("apple.com");
+appleProvider.addScope("email");
+appleProvider.addScope("name");
+
+/** Perfil básico em /users/{uid} */
+export async function ensureUserDoc(user, extra = {}) {
+  if (!user) return;
+  const ref = doc(db, "users", user.uid);
+  const snap = await getDoc(ref);
+
+  const base = {
+    uid: user.uid,
+    email: user.email || null,
+    name: user.displayName || extra.name || null,
+    displayName: user.displayName || extra.name || null,
+    phone: user.phoneNumber || null,
+    photoURL: user.photoURL || null,
+    providers: (user.providerData || []).map(p => p.providerId),
+    createdAt: snap.exists() ? (snap.data().createdAt || serverTimestamp()) : serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+
+  await setDoc(ref, { ...base, ...extra }, { merge: true });
+}
+
+/** Redirect results (Google/Apple) */
+export async function resolveGoogleRedirectResult() {
+  try { return (await getRedirectResult(auth)) || null; } catch { return null; }
+}
+export async function resolveAppleRedirectResult() {
+  try { return (await getRedirectResult(auth)) || null; } catch { return null; }
+}
+
+/** reCAPTCHA invisível (SMS) */
+export function setupInvisibleRecaptcha(containerId) {
+  return new RecaptchaVerifier(auth, containerId, { size: "invisible" });
+}
+
+/** CPF exclusivo em /cpfs/{cpf} (Rules: create only se !exists) */
+export async function setCpfMapping(uid, cleanCpf) {
+  try {
+    const ref = doc(db, "cpfs", cleanCpf);
+    const snap = await getDoc(ref);
+    if (snap.exists()) return { ok: false, reason: "used" };
+    await setDoc(ref, { uid, createdAt: serverTimestamp() }, { merge: false });
+    // opcional: guardar cópia no user p/ leitura rápida
+    await setDoc(doc(db, "users", uid), { cpf: cleanCpf }, { merge: true });
+    return { ok: true, cpf: cleanCpf };
+  } catch {
+    return { ok: false, reason: "error" };
   }
 }
 
-export async function signOut() {
-  await fbSignOut(auth);
-}
-
-// Cria/atualiza o perfil básico em users/{uid}
-export async function upsertUserProfile(u, extra = {}) {
-  if (!u) return;
-  const ref = doc(db, "users", u.uid);
-  await setDoc(
-    ref,
-    {
-      uid: u.uid,
-      name: u.displayName || extra.name || "",
-      email: u.email || "",
-      phone: u.phoneNumber || "",
-      photoURL: u.photoURL || "",
-      providers: (u.providerData || []).map((p) => p.providerId),
-      updatedAt: serverTimestamp(),
-      createdAt: serverTimestamp(),
-      ...extra,
-    },
-    { merge: true }
-  );
-}
-
-/* ============================
-   CPF — integração opcional
-   ============================ */
-
-// Retorna o CPF (string) mapeado para este uid, ou null
+/** Busca CPF por uid */
 export async function findCpfByUid(uid) {
   const q = query(collection(db, "cpfs"), where("uid", "==", uid));
   const snap = await getDocs(q);
-  if (snap.empty) return null;
-  return snap.docs[0].id; // id do doc é o CPF normalizado
+  const doc0 = snap.docs[0];
+  return doc0 ? doc0.id : null; // id do doc é o CPF
 }
 
-/**
- * Tenta criar o mapeamento cpfs/{cpf} -> { uid }, exclusivo pelas Rules.
- * Também grava users/{uid}.cpf = cpf (conveniência).
- * Retorna { ok:true, cpf } ou { ok:false, reason:'used'|'empty' }.
- */
-export async function setCpfMapping(uid, rawCpf) {
-  const cpf = normalizeCpf(rawCpf || "");
-  if (!cpf) return { ok: false, reason: "empty" };
-  try {
-    await setDoc(
-      doc(db, "cpfs", cpf),
-      { uid, createdAt: serverTimestamp() },
-      { merge: false } // falha se já existir (exclusividade garantida)
-    );
-    await updateDoc(doc(db, "users", uid), { cpf, updatedAt: serverTimestamp() }).catch(() => {});
-    return { ok: true, cpf };
-  } catch {
-    return { ok: false, reason: "used" };
+/** Verificação de e-mail (se necessário) */
+export async function ensureEmailVerification(user = auth.currentUser) {
+  if (user && !user.emailVerified && user.email) {
+    await sendEmailVerification(user);
+    return true;
   }
+  return false;
 }
 
-/* ============================
-   Compat / aliases p/ Login.jsx
-   ============================ */
+/** signOut exposto p/ Header/MinhaConta */
+export const signOut = () => fbSignOut(auth);
 
-// manter código legado funcionando
-export async function ensureUserDoc(u, extra = {}) {
-  return upsertUserProfile(u, extra);
-}
-export async function mapCpfToUid(uid, rawCpf) {
-  return setCpfMapping(uid, rawCpf);
-}
-export function sanitizeCpf(v = "") {
-  return normalizeCpf(v);
-}
-
-// Resolver resultado de redirect (Google/Apple). Retorna null se não houve redirect.
-export async function resolveGoogleRedirectResult() {
-  return await getRedirectResult(auth);
-}
-export async function resolveAppleRedirectResult() {
-  return await getRedirectResult(auth);
-}
-
-// reCAPTCHA invisível para telefone (OTP) — reutiliza entre HMRs
-export function setupInvisibleRecaptcha(containerId = "recaptcha-container") {
-  if (typeof window === "undefined") return null;
-  if (window._recaptchaVerifier) return window._recaptchaVerifier;
-  window._recaptchaVerifier = new RecaptchaVerifier(auth, containerId, { size: "invisible" });
-  return window._recaptchaVerifier;
+/** Logs de diagnóstico em dev */
+if (import.meta?.env?.DEV) {
+  // eslint-disable-next-line no-console
+  console.log("[firebase] dev origin:", location.origin);
+  // eslint-disable-next-line no-console
+  console.log("[firebase] apiKey tail:", (firebaseConfig.apiKey || "").slice(-6));
 }
