@@ -323,7 +323,7 @@ export default function Agendamento(){
   return (
     <div className="section">
       <div className="container">
-        <motion.h1 className="h1" initial={{opacity:0,y:10}} animate={{opacity:1,y:0}}>Agendamento</motion.h1>
+        <motion.h1 className="h1" initial={{opacity:0,y:10}} animate={{opacity:1,y:0}}>Agende seu jogo</motion.h1>
 
         {/* Calendário */}
         <div className="card mt-2">
