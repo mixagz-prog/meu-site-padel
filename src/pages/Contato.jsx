@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { db } from "../lib/firebase";
-import { addDoc, collection } from "firebase/firestore";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext.jsx";
 
@@ -57,7 +57,7 @@ export default function Contato(){
       await addDoc(collection(db,"contactMessages"), {
         ...form,
         uid: user?.uid || null,
-        createdAt: new Date(),
+        createdAt: serverTimestamp(), // ⬅ server time
         read: false,
       });
       localStorage.setItem("contact:last", String(Date.now()));
@@ -69,6 +69,11 @@ export default function Contato(){
       setSending(false);
     }
   }
+
+  // Endereço mostrado e usado no mapa:
+  const address = "Estrada Linha pedreira — São Miguel do Oeste - SC";
+  const mapEmbedSrc = `https://www.google.com/maps?q=${encodeURIComponent(address)}&hl=pt-BR&z=15&output=embed`;
+  const mapViewLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 
   return (
     <div className="section">
@@ -128,24 +133,28 @@ export default function Contato(){
           {/* Informações / Mapa */}
           <div className="card" style={{ display:"grid", gap:12 }}>
             <div className="h2">Informações</div>
-            <div className="small" style={{ color:"var(--muted)" }}>
-              Endereço, horários e canais de contato do seu clube (edite depois).
-            </div>
             <div>
-              <div><strong>Endereço:</strong> Rua Exemplo, 123 — Sua Cidade</div>
-              <div className="mt-1"><strong>WhatsApp:</strong> (00) 00000-0000</div>
-              <div className="mt-1"><strong>E-mail:</strong> contato@seudominio.com</div>
-              <div className="mt-1"><strong>Horário:</strong> 08:00 às 22:30</div>
+              <div><strong>Endereço:</strong> {address}</div>
+              {<div className="mt-1"><strong>WhatsApp:</strong> (49) 98811-5526</div>}
+              <div className="mt-1"><strong>E-mail:</strong> reserva.padel@gmail.com</div>
+              <div className="mt-1"><strong>Horário:</strong> 08:00 às 21:00</div>
             </div>
+
             <div className="mt-2" style={{ borderRadius:12, overflow:"hidden", border:"1px solid var(--border)" }}>
-              {/* Troque o src pela URL do seu mapa */}
               <iframe
-                title="Mapa"
-                src="https://maps.google.com/maps?q=S%C3%A3o%20Paulo&t=&z=13&ie=UTF8&iwloc=&output=embed"
-                width="100%" height="260" style={{ border:0 }}
-                loading="lazy" referrerPolicy="no-referrer-when-downgrade"
+                title="Reserva Padel - Localização"
+                src={mapEmbedSrc}  // ✅ Embed que funciona em iframe
+                width="100%"
+                height="260"
+                style={{ border:0 }}
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                allowFullScreen
               />
             </div>
+            <a className="btn" href={mapViewLink} target="_blank" rel="noopener noreferrer">
+              Abrir no Google Maps
+            </a>
           </div>
         </div>
 

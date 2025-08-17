@@ -15,7 +15,12 @@ import { buildICS, downloadICS, googleCalendarUrl } from "../utils/calendar";
 
 const fade = { hidden:{opacity:0,y:12}, show:{opacity:1,y:0,transition:{type:"spring",stiffness:120}} };
 
-function toDateKey(d){ const y=d.getFullYear(); const m=String(d.getMonth()+1).padStart(2,"0"); const day=String(d.getDate()).padStart(2,"0"); return `${y}-${m}-${day}`; }
+function toDateKey(d){
+  const y=d.getFullYear();
+  const m=String(d.getMonth()+1).padStart(2,"0");
+  const day=String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${day}`;
+}
 function parseFromPath(fullPath){
   const parts = fullPath.split("/");
   const i = parts.indexOf("events");
@@ -55,14 +60,16 @@ export default function MinhasReservas(){
   const [myWaitlists, setMyWaitlists] = useState([]);
 
   useEffect(()=>{
-    if(!user) return;
+    if(!user) { setLoading(false); return; }
     setLoading(true);
 
-    // Reservas individuais (collectionGroup "slots" em reservations)
+    // Reservas individuais (apenas caminhos sob /reservations/**/slots/**)
     const qRes = query(collectionGroup(db, "slots"), where("uid","==",user.uid));
     const unsubRes = onSnapshot(qRes, (snap)=>{
       const rows = [];
       snap.forEach(d=>{
+        // filtra para pegar só /reservations/.../slots/...
+        if (!d.ref.path.includes("/reservations/")) return;
         const data = d.data();
         const startAt = data.startAt?.toDate?.() || new Date(data.startAt);
         rows.push({
@@ -78,7 +85,7 @@ export default function MinhasReservas(){
         });
       });
       setMyReservations(rows);
-    });
+    }, (err)=>{ console.error("reservations onSnapshot:", err); });
 
     // Eventos (assentos onde eu estou taken=true)
     const qSeats = query(collectionGroup(db, "seats"), where("uid","==",user.uid), where("taken","==",true));
@@ -98,9 +105,9 @@ export default function MinhasReservas(){
         });
       });
       setMyEventSeats(rows);
-    });
+    }, (err)=>{ console.error("seats onSnapshot:", err); });
 
-    // Waitlist (agora consulta por campo uid)
+    // Fila (docs com campo uid == meu uid)
     const qWait = query(collectionGroup(db, "waitlist"), where("uid", "==", user.uid));
     const unsubWait = onSnapshot(qWait,(snap)=>{
       const rows=[];
@@ -118,7 +125,7 @@ export default function MinhasReservas(){
         });
       });
       setMyWaitlists(rows);
-    });
+    }, (err)=>{ console.error("waitlist onSnapshot:", err); });
 
     return ()=>{ unsubRes(); unsubSeats(); unsubWait(); };
   },[user]);
@@ -185,7 +192,22 @@ export default function MinhasReservas(){
   }
 
   async function leaveWaitlist(item){
+    // item.path já é o caminho completo do doc em /events/{dateKey}/slots/{slotKey}/waitlist/{uid}
     await deleteDoc(doc(db, item.path));
+  }
+
+  if (!user) {
+    return (
+      <div className="section">
+        <div className="container">
+          <div className="card">
+            <div className="h2">Você precisa entrar</div>
+            <div className="small" style={{ color:"var(--muted)" }}>Faça login para ver suas reservas.</div>
+            <a className="btn btn-primary" href="/login">Ir para o login</a>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
