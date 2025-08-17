@@ -11,24 +11,33 @@ export function AuthProvider({ children }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  useEffect(()=>{
+  useEffect(() => {
     let unsubAdmin = null;
-    const unsubAuth = onAuthStateChanged(auth, (u)=>{
+
+    const unsubAuth = onAuthStateChanged(auth, (u) => {
       setUser(u);
+
       if (unsubAdmin) { unsubAdmin(); unsubAdmin = null; }
+
       if (u) {
-        // escuta admins/{uid}
-        unsubAdmin = onSnapshot(doc(db,"admins",u.uid),
-          (snap)=> setIsAdmin(snap.exists()),
-          ()=> setIsAdmin(false)
+        // escuta admins/{uid} (só quando logado, evitando permission-denied)
+        unsubAdmin = onSnapshot(
+          doc(db, "admins", u.uid),
+          (snap) => setIsAdmin(snap.exists()),
+          () => setIsAdmin(false)
         );
       } else {
         setIsAdmin(false);
       }
+
       setLoading(false);
     });
-    return ()=> { if (unsubAdmin) unsubAdmin(); unsubAuth(); };
-  },[]);
+
+    return () => {
+      if (unsubAdmin) unsubAdmin();
+      unsubAuth();
+    };
+  }, []);
 
   return (
     <Ctx.Provider value={{ user, isAdmin, loading }}>
@@ -37,7 +46,7 @@ export function AuthProvider({ children }) {
   );
 }
 
-export function useAuth(){
+export function useAuth() {
   const ctx = useContext(Ctx);
   if (!ctx) throw new Error("useAuth deve ser usado dentro de <AuthProvider>");
   return ctx;

@@ -1,167 +1,195 @@
-// src/pages/Home.jsx
-import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import { NavLink } from "react-router-dom";
 
-const fade = { hidden:{opacity:0,y:16}, show:{opacity:1,y:0,transition:{type:"spring",stiffness:120}} };
-const pop  = { hidden:{opacity:0,scale:.96}, show:{opacity:1,scale:1,transition:{type:"spring",stiffness:140}} };
+const HERO_IMG = "/assets/courts/indoor-outdoor-hero.jpg"; // altere se precisar
+
+const Section = ({ title, children }) => (
+  <section style={{ padding: "48px 0", borderTop: "1px solid #232323" }}>
+    <div className="container">
+      <h2 className="h2" style={{ marginBottom: 14 }}>{title}</h2>
+      <div className="prose" style={{ color: "#d1d5db" }}>{children}</div>
+    </div>
+  </section>
+);
 
 export default function Home() {
   return (
-    <div>
+    <div style={{ background: "#0a0a0a", color: "#fff" }}>
+      <div
+        style={{
+          position: "relative",
+          borderBottom: "1px solid #1f2937",
+          overflow: "hidden",
+          isolation: "isolate",
+        }}
+      >
+        {/* IMAGEM DE FUNDO */}
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            inset: 0,
+            backgroundImage: `url(${HERO_IMG})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            filter: "contrast(1.05) saturate(1.05)",
+            opacity: 0.38,
+          }}
+        />
 
-      {/* HERO */}
-      <section className="section" style={{ paddingTop: 64 }}>
-        <div className="container">
-          <div className="card" style={{ overflow:"hidden", position:"relative", padding:0 }}>
-            {/* background image / fallback */}
+        {/* GLOW LARANJA + CAMADA DE LEGIBILIDADE */}
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            inset: 0,
+            background:
+              "radial-gradient(900px 500px at 0% 20%, rgba(255,122,0,.36), transparent 55%)",
+            pointerEvents: "none",
+            mixBlendMode: "screen",
+          }}
+        />
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            inset: 0,
+            background:
+              "linear-gradient(180deg, rgba(0,0,0,.55), rgba(0,0,0,.35) 40%, rgba(0,0,0,.6)), radial-gradient(800px 400px at 50% 0%, rgba(0,0,0,.25), transparent 70%)",
+          }}
+        />
+
+        {/* CONTEÚDO */}
+        <div
+          className="container"
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "grid",
+            placeItems: "center",
+            padding: "24px 0",
+          }}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ type: "spring", stiffness: 140, damping: 18 }}
+            style={{ textAlign: "center", maxWidth: 980 }}
+          >
             <div
               style={{
-                position:"absolute", inset:0,
-                backgroundImage: `url(/images/home/hero.jpg)`,
-                backgroundSize:"cover", backgroundPosition:"center",
-                filter:"brightness(.45) saturate(1)",
+                display: "inline-flex",
+                padding: "6px 10px",
+                borderRadius: 999,
+                border: "1px solid rgba(255,255,255,.14)",
+                background:
+                  "linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03))",
+                color: "#ffb06b",
+                fontWeight: 800,
+                letterSpacing: ".2px",
+                marginBottom: 10,
               }}
-              onError={(e)=>{ e.currentTarget.style.background = "radial-gradient(800px 400px at 20% 0, rgba(255,122,0,.15), transparent 60%), #0a0a0a"; }}
-            />
-            {/* gradient overlay laranja sutil */}
-            <div style={{
-              position:"absolute", inset:0,
-              background:"radial-gradient(900px 500px at 120% -10%, rgba(255,122,0,.18), transparent 60%)"
-            }}/>
-
-            <div style={{ position:"relative", padding:"54px min(6vw, 48px)", display:"grid", gap:16 }}>
-              <motion.h1 className="h1" variants={fade} initial="hidden" animate="show">
-                Padel com padrão de excelência
-              </motion.h1>
-              <motion.p className="lead" variants={fade} initial="hidden" animate="show">
-                Agendamento rápido, eventos com fila inteligente e materiais premium.
-                Um sistema profissional, no melhor estilo preto + laranja.
-              </motion.p>
-
-              <motion.div variants={fade} initial="hidden" animate="show" style={{ display:"flex", gap:10, flexWrap:"wrap", marginTop:8 }}>
-                <Link to="/agendamento" className="btn btn-primary">Agendar agora</Link>
-                <Link to="/materiais" className="btn">Ver materiais</Link>
-              </motion.div>
-
-              <motion.div variants={fade} initial="hidden" animate="show" style={{ display:"flex", gap:8, flexWrap:"wrap", marginTop:14 }}>
-                <span className="badge">⚡ reservas em 2 cliques</span>
-                <span className="badge">🎟️ eventos com assentos e fila</span>
-                <span className="badge">🛡️ regras anti-no-show</span>
-              </motion.div>
+            >
+              Quadras de padel premium · Projeto à execução
             </div>
-          </div>
-        </div>
-      </section>
 
-      {/* DESTAQUES */}
-      <section className="section" style={{ paddingTop: 24 }}>
-        <div className="container grid grid-3">
-          {[
-            {icon:"🕒", title:"Agendamento ágil", text:"Horários dinâmicos (08–18 em 1h, 18–22:30 em 1h30) com antecedência mínima de 20min."},
-            {icon:"👥", title:"Eventos inteligentes", text:"Assentos, lista de espera, tranca de lista e promoção automática pelo admin."},
-            {icon:"🧰", title:"Materiais premium", text:"Qualidade e durabilidade para quadras e acessórios de alto nível."},
-          ].map((f,i)=>(
-            <motion.div key={i} className="glass" variants={pop} initial="hidden" whileInView="show" viewport={{ once:true, amount:.4 }} style={{ padding:16 }}>
-              <div style={{ fontSize:28 }}>{f.icon}</div>
-              <div className="h2 mt-2" style={{ fontSize:20 }}>{f.title}</div>
-              <div className="small mt-1" style={{ color:"var(--muted)" }}>{f.text}</div>
-            </motion.div>
-          ))}
-        </div>
-      </section>
-
-      {/* MATERIAIS EM DESTAQUE */}
-      <section className="section">
-        <div className="container">
-          <div className="h2">Materiais em destaque</div>
-          <div className="grid grid-3 mt-3">
-            {[
-              {img:"/images/home/material-1.jpg", title:"Gramado sintético X-Pro", desc:"Tração perfeita e desgaste mínimo para partidas intensas."},
-              {img:"/images/home/material-2.jpg", title:"Iluminação LED Pro", desc:"Uniforme, econômica e com índice de reprodução de cor superior."},
-              {img:"/images/home/material-3.jpg", title:"Vidros temperados 12mm", desc:"Segurança e visibilidade cristalina, aprovados para alto nível."},
-            ].map((m,i)=>(
-              <motion.article key={i} className="card" variants={pop} initial="hidden" whileInView="show" viewport={{ once:true, amount:.35 }} style={{ overflow:"hidden" }}>
-                <div style={{
-                  height:180, backgroundImage:`url(${m.img})`, backgroundSize:"cover", backgroundPosition:"center",
-                  borderRadius:"10px", border:"1px solid var(--border)"
-                }}
-                onError={(e)=>{ e.currentTarget.style.background = "linear-gradient(135deg, rgba(255,122,0,.15), rgba(255,122,0,.05))"; }}
-                />
-                <div className="h2 mt-2" style={{ fontSize:18 }}>{m.title}</div>
-                <div className="small mt-1" style={{ color:"var(--muted)" }}>{m.desc}</div>
-                <div className="mt-2">
-                  <Link to="/materiais" className="btn">Ver detalhes</Link>
-                </div>
-              </motion.article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* DIFERENCIAIS */}
-      <section className="section">
-        <div className="container card">
-          <div className="grid" style={{ gridTemplateColumns:"1.2fr .8fr" }}>
-            <div>
-              <div className="h2">Por que jogar aqui?</div>
-              <ul className="small mt-2" style={{ color:"var(--muted)", lineHeight:1.6 }}>
-                <li>• Sistema de reservas com confirmação e regras anti-abuso.</li>
-                <li>• Eventos com assentos, fila e tranca (somente admin altera).</li>
-                <li>• Painel do admin com ranking, bloqueios e mensagens de contato.</li>
-                <li>• Materiais selecionados e curadoria técnica de ponta.</li>
-              </ul>
-              <div className="mt-3" style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
-                <Link to="/diferenciais" className="btn">Ver diferenciais</Link>
-                <Link to="/contato" className="btn btn-primary">Solicitar orçamento</Link>
-              </div>
-            </div>
-            <div className="hide-sm">
-              <div
+            {/* TÍTULO EM DUAS LINHAS */}
+            <h1
+              className="h1"
+              style={{ fontSize: "clamp(30px, 5vw, 52px)", marginBottom: 10, lineHeight: 1.08 }}
+            >
+              <span
                 style={{
-                  height:220, borderRadius:12, border:"1px solid var(--border)",
-                  backgroundImage:"url(/images/home/quadra.jpg)",
-                  backgroundSize:"cover", backgroundPosition:"center",
+                  display: "block",
+                  fontWeight: 1000,
+                  letterSpacing: 0.4,
+                  /* >>> AQUI: degradê mais laranja <<< */
+                  backgroundImage:
+                    "linear-gradient(90deg,#FFC08A 0%,#FFA24A 22%,#FF8A1E 44%,#FF7A00 66%,#F76700 82%,#E85400 100%)",
+                  backgroundSize: "200% auto",
+                  WebkitBackgroundClip: "text",
+                  backgroundClip: "text",
+                  color: "transparent",
+                  filter: "drop-shadow(0 2px 8px rgba(255,122,0,.28))",
                 }}
-                onError={(e)=>{ e.currentTarget.style.background = "linear-gradient(135deg, rgba(255,122,0,.15), rgba(255,122,0,.05))"; }}
-              />
+              >
+                RESERVA PADEL
+              </span>
+              <span style={{ display: "block", fontWeight: 900 }}>
+                Excelência em quadras premium
+              </span>
+            </h1>
+
+            <p
+              className="lead"
+              style={{
+                maxWidth: 880,
+                margin: "0 auto",
+                color: "#d1d5db",
+                marginBottom: 16,
+              }}
+            >
+              Piso nivelado, estrutura galvanizada com pintura eletrostática{" "}
+              <b>dupla</b>, vidro <b>12&nbsp;mm certificado</b> e acessórios{" "}
+              <b>inox&nbsp;304</b>. Padrão internacional de segurança,
+              durabilidade e jogabilidade para elevar seu clube.
+            </p>
+
+            <div
+              style={{
+                display: "flex",
+                gap: 12,
+                justifyContent: "center",
+                flexWrap: "wrap",
+              }}
+            >
+              <NavLink to="/contato" className="btn btn-primary">
+                Solicitar orçamento
+              </NavLink>
+              <NavLink to="/materiais" className="btn btn-primary">
+                Ver materiais
+              </NavLink>
+              <NavLink to="/agendamento" className="btn btn-primary">
+                Agendar horário
+              </NavLink>
             </div>
-          </div>
+          </motion.div>
         </div>
-      </section>
 
-      {/* DEPOIMENTOS */}
-      <section className="section">
-        <div className="container">
-          <div className="h2">O que falam de nós</div>
-          <div className="grid grid-3 mt-3">
-            {[
-              {name:"Marcos", text:"“Reservar ficou fácil demais. Em 2 cliques eu garanto meu horário.”"},
-              {name:"Giulia", text:"“Eventos com fila e promoção automática evitaram confusão. Profissional!”"},
-              {name:"Rafa", text:"“Materiais de primeira, iluminação top. Experiência premium.”"},
-            ].map((t,i)=>(
-              <motion.blockquote key={i} className="glass" variants={pop} initial="hidden" whileInView="show" viewport={{ once:true, amount:.3 }} style={{ padding:16 }}>
-                <div className="small" style={{ color:"var(--muted)" }}>{t.text}</div>
-                <div className="mt-2" style={{ fontWeight:800 }}>{t.name}</div>
-              </motion.blockquote>
-            ))}
-          </div>
-        </div>
-      </section>
+        {/* Altura da hero */}
+        <div style={{ paddingTop: "36vw" }} />
+      </div>
 
-      {/* CTA FINAL */}
-      <section className="section" style={{ paddingBottom: 80 }}>
-        <div className="container card" style={{ textAlign:"center" }}>
-          <div className="h2">Pronto para jogar?</div>
-          <p className="small" style={{ color:"var(--muted)", marginTop:6 }}>
-            Escolha seu horário e confirme em poucos segundos.
-          </p>
-          <div className="mt-3" style={{ display:"flex", gap:10, justifyContent:"center", flexWrap:"wrap" }}>
-            <Link to="/agendamento" className="btn btn-primary">Agendar agora</Link>
-            <Link to="/contato" className="btn">Fale conosco</Link>
-          </div>
-        </div>
-      </section>
+      <Section title="Por que nossas quadras?">
+        <ul style={{ lineHeight: 1.7 }}>
+          <li>
+            <b>Estrutura premium:</b> aço galvanizado a quente + pintura
+            eletrostática dupla, com reforços laterais.
+          </li>
+          <li>
+            <b>Vidros 12&nbsp;mm certificados:</b> padrão de segurança e
+            resposta de jogo.
+          </li>
+          <li>
+            <b>Certificações:</b> fabricação conforme SGC e normas de referência.
+          </li>
+          <li>
+            <b>Acessórios inox 304:</b> durabilidade extra em áreas
+            externas/litorâneas.
+          </li>
+        </ul>
+      </Section>
 
+      <Section title="Entrega completa, do projeto à execução">
+        <ul style={{ lineHeight: 1.7 }}>
+          <li>Projeto estrutural e layout.</li>
+          <li>Terraplenagem, base e nivelamento do piso.</li>
+          <li>Montagem e pintura da estrutura metálica.</li>
+          <li>Instalação dos vidros 12&nbsp;mm e telas galvanizadas.</li>
+          <li>Aplicação da grama e marcações.</li>
+          <li>Iluminação e acessórios profissionais.</li>
+        </ul>
+      </Section>
     </div>
   );
 }
