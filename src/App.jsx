@@ -1,12 +1,12 @@
+// src/App.jsx
 import { Suspense, lazy, useEffect } from "react";
 import { Routes, Route, Navigate, useLocation, Outlet } from "react-router-dom";
 import Header from "./components/Header.jsx";
+import ContactBar from "./components/ContactBar.jsx"; // ⬅️ novo
 
 const Home = lazy(() => import("./pages/Home.jsx"));
 const Diferenciais = lazy(() => import("./pages/Diferenciais.jsx"));
 const Materiais = lazy(() => import("./pages/Materiais.jsx"));
-
-/** Ajuste estes imports/lazy se você tiver estas páginas */
 const Agendamento = lazy(() => import("./pages/Agendamento.jsx"));
 const Contato = lazy(() => import("./pages/Contato.jsx"));
 const Login = lazy(() => import("./pages/Login.jsx"));
@@ -27,6 +27,14 @@ function Layout() {
       <main style={{ minHeight: "60vh" }}>
         <Outlet />
       </main>
+
+      {/* sempre visível */}
+      <ContactBar
+        phone="5549988115526"      // <-- troque
+        instagram="reserva.padel"   // <-- troque
+        hideOn={["/admin"]}        // esconde no admin se quiser
+        position="right"
+      />
     </>
   );
 }
@@ -59,9 +67,7 @@ export default function App() {
           <Route path="/minha-conta" element={<MinhaConta />} />
           <Route path="/minhas-reservas" element={<MinhasReservas />} />
           <Route path="/admin" element={<Admin />} />
-          {/* redireciona legado */}
           <Route path="/quadras" element={<Navigate to="/" replace />} />
-          {/* 404 */}
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
